@@ -1,0 +1,12 @@
+node_modules/
+dist/
+packages/*/dist/
+.next/
+.turbo/
+.env
+.env.*.local
+*.log
+.DS_Store
+coverage/
+.data/
+.pr-bodies/

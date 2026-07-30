@@ -1,0 +1,24 @@
+# Caddy 2 — production reverse proxy on VPS-1.
+# Caddy handles TLS automatically (Let's Encrypt) for each hostname below,
+# provided the DNS A records point to this VPS.
+
+app.auto4you.in {
+  encode zstd gzip
+  reverse_proxy ui:3000
+}
+
+api.auto4you.in {
+  encode zstd gzip
+  reverse_proxy api:4000
+}
+
+# WebSocket endpoint (Voicelink/Fonada dial in here; UI streaming transcripts).
+# Same container as api, just a separate hostname so we can split later.
+ws.auto4you.in {
+  reverse_proxy api:4000
+}
+
+# MCP server — also on api, separate hostname for tenant token scoping.
+mcp.auto4you.in {
+  reverse_proxy api:4000
+}

@@ -1,0 +1,68 @@
+# Production docker-compose for VPS-1.
+# Lives at /opt/voiceplatform/docker-compose.prod.yml after `scp`.
+#
+# Env required in the same directory:
+#   .env.api     — read by the api container (MONGO_URL, JWT_SECRET, all vendor keys)
+#   .env.ui      — read by the ui container  (NEXT_PUBLIC_* and NEXTAUTH_SECRET)
+#   .env.engine  — read by the engine container (DOGRAH_MCP_KEY, etc.)
+# And shell env when invoking docker compose:
+#   GH_OWNER=harddiikk   TAG=<sha or latest>
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api, ui]
+
+  api:
+    image: ghcr.io/${GH_OWNER}/voice-platform-api:${TAG:-latest}
+    restart: unless-stopped
+    env_file: .env.api
+    depends_on: [mongo, redis]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  ui:
+    image: ghcr.io/${GH_OWNER}/voice-platform-ui:${TAG:-latest}
+    restart: unless-stopped
+    env_file: .env.ui
+    depends_on: [api]
+
+  engine:
+    image: ghcr.io/${GH_OWNER}/voice-engine:${ENGINE_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env.engine
+    depends_on: [redis]
+    # Phase 0 launches without the engine. Bring it up with:
+    #   docker compose --profile engine up -d
+    profiles: [engine]
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    # Mongo is internal-only (not exposed to host or via Caddy). Running
+    # without --auth on the docker network is acceptable for v1; enable
+    # auth + bootstrap a root user before opening to other tenants/VPS.
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+
+volumes:
+  caddy_data:
+  caddy_config:
+  mongo_data:
+  redis_data:

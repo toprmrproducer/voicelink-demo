@@ -1,0 +1,18 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    # Host ports remapped to avoid conflicts with other local stacks
+    # (vapp-mongo holds 27017, stockmarketresearch-redis holds 6379).
+    # Container ports unchanged so the in-network DNS name "mongo:27017" still works.
+    ports: ["27018:27017"]
+    volumes:
+      - ./.data/mongo:/data/db
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports: ["6380:6379"]
+    volumes:
+      - ./.data/redis:/data
+    command: ["redis-server", "--appendonly", "yes"]
